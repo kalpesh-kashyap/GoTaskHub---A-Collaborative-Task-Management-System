@@ -15,6 +15,7 @@ func main() {
 	config.ConnectDB()
 	config.MigrateDB()
 	routes.UserRouter(app)
+	routes.UploadRoutesHandler(app)
 
 	app.Use(middleware.LoggingMiddleware())
 	app.Use(middleware.ErrorHandlerMiddleware())
