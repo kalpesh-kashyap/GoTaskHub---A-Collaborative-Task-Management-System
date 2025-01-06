@@ -11,20 +11,27 @@ import (
 
 func DownloadPool(taskQueue chan string, outputDir string) {
 	workerCount := 3
+	var wg sync.WaitGroup
 	for i := 1; i <= workerCount; i++ {
-		go dwonlaodWorker(i, taskQueue, outputDir)
+		wg.Add(1)
+		go dwonlaodWorker(i, taskQueue, outputDir, &wg)
 	}
 
 	go func() {
-		if len(taskQueue) > cap(taskQueue)/2 {
+		if len(taskQueue) > cap(taskQueue)/5 {
 			workerCount++
-			go dwonlaodWorker(workerCount, taskQueue, outputDir)
+			go dwonlaodWorker(workerCount, taskQueue, outputDir, &wg)
 			log.Printf("Increased worker count to %d", workerCount)
 		}
 	}()
+	go func() {
+		wg.Wait()
+		log.Println("All workers have exited")
+	}()
 }
 
-func dwonlaodWorker(id int, taskQueue chan string, outputDir string) {
+func dwonlaodWorker(id int, taskQueue chan string, outputDir string, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for task := range taskQueue {
 		log.Printf("Worker %d processing URL: %s", id, task)
 		downloadAndSaveProcess(task, outputDir)
@@ -32,12 +39,12 @@ func dwonlaodWorker(id int, taskQueue chan string, outputDir string) {
 }
 
 func downloadAndSaveProcess(task string, outputDir string) []string {
-	downloadedFile := make(chan []byte, 5)
-	results := make(chan string, 5)
+	downloadedFile := make(chan []byte, 1)
+	results := make(chan string, 2)
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
+	wg.Add(2)
 	go downloadFileFromURL(task, downloadedFile, results, &wg)
 	go saveDownloadedFile(task, downloadedFile, results, &wg, outputDir)
 
@@ -58,12 +65,14 @@ func downloadFileFromURL(url string, downloadedFile chan []byte, results chan st
 	res, err := http.Get(url)
 	if err != nil {
 		results <- "failed to download " + url
+		return
 	}
 	defer res.Body.Close()
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		results <- "faile to read " + url
+		return
 	}
 
 	downloadedFile <- body

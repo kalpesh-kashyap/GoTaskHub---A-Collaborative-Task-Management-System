@@ -8,7 +8,7 @@ import (
 )
 
 var tasksQueue = make(chan string, 10)
-var outputDir = "/downloads"
+var outputDir = "downloads/"
 
 func init() {
 	utils.DownloadPool(tasksQueue, outputDir)
@@ -31,11 +31,11 @@ func DownlaodHandler(c *fiber.Ctx) error {
 	}
 
 	if _, err := os.Stat(outputDir); os.IsNotExist(err) {
-		err = os.Mkdir(outputDir, os.ModePerm)
+		err = os.Mkdir(outputDir, 0755)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error":   true,
-				"message": "Failed to create dir",
+				"message": "Failed to create dir" + err.Error(),
 			})
 		}
 	}
@@ -43,6 +43,7 @@ func DownlaodHandler(c *fiber.Ctx) error {
 	for _, url := range fileUrls.URLs {
 		tasksQueue <- url
 	}
+	close(tasksQueue)
 
 	return c.JSON(fiber.Map{"message": "Files are in queue to download"})
 
