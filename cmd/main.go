@@ -16,6 +16,7 @@ func main() {
 	config.MigrateDB()
 	routes.UserRouter(app)
 	routes.UploadRoutesHandler(app)
+	routes.DownloadRoutes(app)
 
 	app.Use(middleware.LoggingMiddleware())
 	app.Use(middleware.ErrorHandlerMiddleware())
